@@ -52,24 +52,24 @@ jobs:
           cat tmp_base/android/build.gradle >> tmp_build_gradle_prefix
           mv tmp_build_gradle_prefix tmp_base/android/build.gradle
 
-          # すべてのサブプロジェクトで Build-Tools のバージョンを強制的に 35.0.0 に揃える（AAPT2 エラー回避のため settings.gradle で処理）
+          # すべてのサブプロジェクトで Build-Tools のバージョンを強制的に 34.0.0 に揃える（AAPT2 エラー回避のため settings.gradle で処理）
           cat << 'EOF' >> tmp_base/android/settings.gradle
           gradle.beforeProject { project ->
               project.afterEvaluate { p ->
                   if (p.hasProperty("android")) {
                       p.android {
-                          buildToolsVersion "35.0.0"
+                          buildToolsVersion "34.0.0"
                       }
                   }
               }
           }
           EOF
 
-          # Android SDK バージョンを 35 に強制更新（audioplayers の要求を満たすため）
-          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/' tmp_base/android/app/build.gradle
-          sed -i 's/compileSdkVersion\s*flutter.compileSdkVersion/compileSdkVersion 35/' tmp_base/android/app/build.gradle
-          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 35/' tmp_base/android/app/build.gradle
-          sed -i 's/targetSdkVersion\s*flutter.targetSdkVersion/targetSdkVersion 35/' tmp_base/android/app/build.gradle
+          # Android SDK バージョンを 34 に強制更新（audioplayers の要求を満たし、かつ AAPT2 エラーを防ぐため）
+          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 34/' tmp_base/android/app/build.gradle
+          sed -i 's/compileSdkVersion\s*flutter.compileSdkVersion/compileSdkVersion 34/' tmp_base/android/app/build.gradle
+          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 34/' tmp_base/android/app/build.gradle
+          sed -i 's/targetSdkVersion\s*flutter.targetSdkVersion/targetSdkVersion 34/' tmp_base/android/app/build.gradle
 
           # 確認用
           cat tmp_base/android/settings.gradle
