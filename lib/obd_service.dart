@@ -36,9 +36,8 @@ class ObdService {
     await Future.delayed(const Duration(milliseconds: 300));
     await _sendCommand('ATH0');
     await Future.delayed(const Duration(milliseconds: 300));
-    // ISO 14230-4 KWP (ファストイニット) H16年式ヴォクシー用
-    // うまく繋がらない場合は ATSP4 (5ボーイニット) に変える
-    await _sendCommand('ATSP5');
+    // プロトコル自動検出 (ATSP0) に変更してフェラーリや現行車などのCAN通信にも対応させる
+    await _sendCommand('ATSP0');
     await Future.delayed(const Duration(milliseconds: 500));
     // KWPはヘッダー形式が違うのでヘッダー非表示を念押し
     await _sendCommand('ATH0');
