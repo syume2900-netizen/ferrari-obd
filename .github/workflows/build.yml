@@ -55,13 +55,18 @@ jobs:
           # すべてのサブプロジェクトで SDK と Build-Tools のバージョンを強制的に 35/35.0.0 に揃える
           cat << 'EOF' >> tmp_base/android/build.gradle
           subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty("android")) {
-                      project.android {
+              def configureProject = { p ->
+                  if (p.hasProperty("android")) {
+                      p.android {
                           compileSdkVersion 35
                           buildToolsVersion "35.0.0"
                       }
                   }
+              }
+              if (it.state.executed) {
+                  configureProject(it)
+              } else {
+                  it.afterEvaluate { configureProject(it) }
               }
           }
           EOF
