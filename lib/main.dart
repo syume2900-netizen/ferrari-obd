@@ -48,7 +48,9 @@ class _MainScreenState extends State<MainScreen> {
   double _throttle = 0.0;
   String _status = '接続待ち';
   StreamSubscription? _sub;
+  StreamSubscription? _logSub;
   String _selectedProtocol = 'ATSP0';
+  final List<String> _logs = [];
 
   @override
   void initState() {
@@ -82,6 +84,14 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _connecting = true;
       _status = '${device.name} に接続中...';
+      _logs.clear();
+    });
+    _logSub?.cancel();
+    _logSub = _obd.logStream.listen((log) {
+      setState(() {
+        _logs.add(log);
+        if (_logs.length > 50) _logs.removeAt(0);
+      });
     });
     try {
       await _obd.connect(device, _selectedProtocol);
@@ -113,6 +123,7 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _disconnect() async {
     _sub?.cancel();
+    _logSub?.cancel();
     await _sound.stop();
     await _obd.disconnect();
     setState(() {
@@ -127,6 +138,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void dispose() {
     _sub?.cancel();
+    _logSub?.cancel();
     _sound.dispose();
     _obd.dispose();
     super.dispose();
@@ -257,6 +269,7 @@ class _MainScreenState extends State<MainScreen> {
                   },
                 ),
         ),
+        _buildLogPanel(),
       ],
     );
   }
@@ -388,7 +401,64 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ),
+        _buildLogPanel(),
       ],
+    );
+  }
+
+  Widget _buildLogPanel() {
+    return Container(
+      height: 180,
+      width: double.infinity,
+      color: Colors.black,
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '通信ログ (ELM327 / ECU 応答)',
+                style: TextStyle(
+                  color: Colors.greenAccent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_sweep, color: Colors.grey, size: 16),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  setState(() {
+                    _logs.clear();
+                  });
+                },
+              ),
+            ],
+          ),
+          const Divider(color: Colors.white24, height: 8),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _logs.length,
+              itemBuilder: (context, index) {
+                // 最新のログが下に来るようにする
+                final log = _logs[index];
+                final isSend = log.startsWith('->');
+                return Text(
+                  log,
+                  style: TextStyle(
+                    color: isSend ? Colors.amberAccent : Colors.white70,
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

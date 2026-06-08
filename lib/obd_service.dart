@@ -14,6 +14,9 @@ class ObdService {
   final _dataController = StreamController<ObdData>.broadcast();
   Stream<ObdData> get dataStream => _dataController.stream;
 
+  final _logController = StreamController<String>.broadcast();
+  Stream<String> get logStream => _logController.stream;
+
   String _buffer = '';
   bool _initialized = false;
   bool _requesting = false;
@@ -73,6 +76,7 @@ class ObdService {
 
   Future<void> _sendCommand(String cmd) async {
     if (_connection == null) return;
+    _logController.add('-> $cmd');
     _connection!.output.add(Uint8List.fromList(utf8.encode('$cmd\r')));
     await _connection!.output.allSent;
   }
@@ -83,6 +87,7 @@ class ObdService {
     if (!_buffer.contains('>')) return;
 
     final response = _buffer.replaceAll('>', '').trim();
+    _logController.add('<- ${response.replaceAll('\r', ' ')}');
     _buffer = '';
     _requesting = false;
 
@@ -142,6 +147,7 @@ class ObdService {
 
   void dispose() {
     _dataController.close();
+    _logController.close();
     disconnect();
   }
 }
