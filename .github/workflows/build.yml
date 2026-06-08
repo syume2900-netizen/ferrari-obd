@@ -52,12 +52,12 @@ jobs:
           cat tmp_base/android/build.gradle >> tmp_build_gradle_prefix
           mv tmp_build_gradle_prefix tmp_base/android/build.gradle
 
-          # すべてのサブプロジェクトで Build-Tools のバージョンを強制的に 35.0.0 に揃える（AAPT2 エラー回避のため）
-          cat << 'EOF' >> tmp_base/android/build.gradle
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty("android")) {
-                      project.android {
+          # すべてのサブプロジェクトで Build-Tools のバージョンを強制的に 35.0.0 に揃える（AAPT2 エラー回避のため settings.gradle で処理）
+          cat << 'EOF' >> tmp_base/android/settings.gradle
+          gradle.beforeProject { project ->
+              project.afterEvaluate { p ->
+                  if (p.hasProperty("android")) {
+                      p.android {
                           buildToolsVersion "35.0.0"
                       }
                   }
