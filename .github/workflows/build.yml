@@ -12,6 +12,12 @@ jobs:
       - name: コードを取得
         uses: actions/checkout@v4
 
+      - name: Java セットアップ
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
       - name: Flutter セットアップ
         uses: subosito/flutter-action@v2
         with:
@@ -45,6 +51,20 @@ jobs:
           EOF
           cat tmp_base/android/build.gradle >> tmp_build_gradle_prefix
           mv tmp_build_gradle_prefix tmp_base/android/build.gradle
+
+          # すべてのサブプロジェクトで SDK と Build-Tools のバージョンを強制的に 35/35.0.0 に揃える
+          cat << 'EOF' >> tmp_base/android/build.gradle
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty("android")) {
+                      project.android {
+                          compileSdkVersion 35
+                          buildToolsVersion "35.0.0"
+                      }
+                  }
+              }
+          }
+          EOF
 
           # Android SDK バージョンを 35 に強制更新（audioplayers の要求を満たすため）
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/' tmp_base/android/app/build.gradle
