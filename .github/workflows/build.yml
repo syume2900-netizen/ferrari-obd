@@ -30,6 +30,8 @@ jobs:
             cp -r assets/. tmp_base/assets/
           fi
           cp android/app/src/main/AndroidManifest.xml tmp_base/android/app/src/main/AndroidManifest.xml
+          # Kotlinバージョンを 1.9.24 に更新
+          sed -i 's/"org.jetbrains.kotlin.android" version "[^"]*"/"org.jetbrains.kotlin.android" version "1.9.24"/g' tmp_base/android/settings.gradle
 
       - name: ダミー音声ファイルを生成（実機テスト用）
         run: |
