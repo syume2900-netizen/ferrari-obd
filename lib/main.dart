@@ -48,6 +48,7 @@ class _MainScreenState extends State<MainScreen> {
   double _throttle = 0.0;
   String _status = '接続待ち';
   StreamSubscription? _sub;
+  String _selectedProtocol = 'ATSP0';
 
   @override
   void initState() {
@@ -83,7 +84,7 @@ class _MainScreenState extends State<MainScreen> {
       _status = '${device.name} に接続中...';
     });
     try {
-      await _obd.connect(device);
+      await _obd.connect(device, _selectedProtocol);
       await _sound.init();
       _sub = _obd.dataStream.listen(_onData);
       setState(() {
@@ -171,6 +172,32 @@ class _MainScreenState extends State<MainScreen> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: const Color(0xFF1E1E1E),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('接続プロトコル:', style: TextStyle(color: Colors.white70)),
+              DropdownButton<String>(
+                value: _selectedProtocol,
+                dropdownColor: const Color(0xFF222222),
+                style: const TextStyle(color: Colors.white),
+                items: const [
+                  DropdownMenuItem(value: 'ATSP0', child: Text('オート（自動検出）')),
+                  DropdownMenuItem(value: 'ATSP4', child: Text('ヴォクシー H16年 (5ボー - ATSP4)')),
+                  DropdownMenuItem(value: 'ATSP5', child: Text('ヴォクシー H16年 (ファスト - ATSP5)')),
+                  DropdownMenuItem(value: 'ATSP6', child: Text('フェラーリ・一般車 (CAN - ATSP6)')),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedProtocol = val);
+                  }
+                },
+              ),
             ],
           ),
         ),

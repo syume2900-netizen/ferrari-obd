@@ -21,13 +21,13 @@ class ObdService {
   double _throttle = 0.0;
   bool _waitingRpm = false;
 
-  Future<void> connect(BluetoothDevice device) async {
+  Future<void> connect(BluetoothDevice device, String protocol) async {
     _connection = await BluetoothConnection.toAddress(device.address);
     _connection!.input!.listen(_onData);
-    await _initialize();
+    await _initialize(protocol);
   }
 
-  Future<void> _initialize() async {
+  Future<void> _initialize(String protocol) async {
     await _sendCommand('ATZ');
     await Future.delayed(const Duration(milliseconds: 1000));
     await _sendCommand('ATE0');
@@ -36,10 +36,10 @@ class ObdService {
     await Future.delayed(const Duration(milliseconds: 300));
     await _sendCommand('ATH0');
     await Future.delayed(const Duration(milliseconds: 300));
-    // プロトコル自動検出 (ATSP0) に変更してフェラーリや現行車などのCAN通信にも対応させる
-    await _sendCommand('ATSP0');
+    // 指定されたプロトコル（ATSP0=オート, ATSP4/5=ヴォクシー等, ATSP6=CAN等）を設定
+    await _sendCommand(protocol);
     await Future.delayed(const Duration(milliseconds: 500));
-    // KWPはヘッダー形式が違うのでヘッダー非表示を念押し
+    // ヘッダー非表示を念押し
     await _sendCommand('ATH0');
     await Future.delayed(const Duration(milliseconds: 300));
     _initialized = true;
