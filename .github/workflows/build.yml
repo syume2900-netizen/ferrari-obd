@@ -52,17 +52,16 @@ jobs:
           cat tmp_base/android/build.gradle >> tmp_build_gradle_prefix
           mv tmp_build_gradle_prefix tmp_base/android/build.gradle
 
-          # すべてのサブプロジェクトで SDK と Build-Tools のバージョンを強制的に 35/35.0.0 に揃える
+          # すべてのサブプロジェクトで Build-Tools のバージョンを強制的に 35.0.0 に揃える（AAPT2 エラー回避のため）
           cat << 'EOF' >> tmp_base/android/build.gradle
           subprojects {
-              def configureAndroid = { p ->
-                  p.android {
-                      compileSdkVersion 35
-                      buildToolsVersion "35.0.0"
+              afterEvaluate { project ->
+                  if (project.hasProperty("android")) {
+                      project.android {
+                          buildToolsVersion "35.0.0"
+                      }
                   }
               }
-              plugins.withId("com.android.application") { configureAndroid(project) }
-              plugins.withId("com.android.library") { configureAndroid(project) }
           }
           EOF
 
