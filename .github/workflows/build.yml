@@ -1,0 +1,52 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: コードを取得
+        uses: actions/checkout@v4
+
+      - name: Flutter セットアップ
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Flutterプロジェクトの土台を生成
+        run: flutter create --project-name ferrari_obd --org com.ferrariapp tmp_base
+
+      - name: カスタムファイルを上書き
+        run: |
+          cp pubspec.yaml tmp_base/pubspec.yaml
+          cp -r lib/. tmp_base/lib/
+          mkdir -p tmp_base/assets/sounds
+          cp -r assets/. tmp_base/assets/
+          cp android/app/src/main/AndroidManifest.xml tmp_base/android/app/src/main/AndroidManifest.xml
+
+      - name: ダミー音声ファイルを生成（実機テスト用）
+        run: |
+          sudo apt-get install -y ffmpeg
+          cd tmp_base/assets/sounds
+          # 本物の音はあとで差し替え。今はサイン波で動作確認用
+          ffmpeg -f lavfi -i "sine=frequency=80:duration=10"  -ar 44100 idle.mp3
+          ffmpeg -f lavfi -i "sine=frequency=150:duration=10" -ar 44100 low.mp3
+          ffmpeg -f lavfi -i "sine=frequency=250:duration=10" -ar 44100 mid.mp3
+          ffmpeg -f lavfi -i "sine=frequency=400:duration=10" -ar 44100 high.mp3
+
+      - name: パッケージ取得
+        run: cd tmp_base && flutter pub get
+
+      - name: APKビルド
+        run: cd tmp_base && flutter build apk --release
+
+      - name: APKをアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferrari-sound-apk
+          path: tmp_base/build/app/outputs/flutter-apk/app-release.apk
