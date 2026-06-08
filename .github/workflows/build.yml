@@ -33,6 +33,7 @@ jobs:
 
       - name: ダミー音声ファイルを生成（実機テスト用）
         run: |
+          sudo apt-get update
           sudo apt-get install -y ffmpeg
           cd tmp_base/assets/sounds
           # 本物の音はあとで差し替え。今はサイン波で動作確認用
