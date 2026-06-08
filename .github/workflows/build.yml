@@ -52,13 +52,17 @@ jobs:
           cat tmp_base/android/build.gradle >> tmp_build_gradle_prefix
           mv tmp_build_gradle_prefix tmp_base/android/build.gradle
 
-          # すべてのサブプロジェクトで Build-Tools のバージョンを強制的に 34.0.0 に揃える（AAPT2 エラー回避のため settings.gradle で処理）
+          # すべてのサブプロジェクトで SDK と Build-Tools のバージョンを強制的に 34 / 34.0.0 に揃える（AAPT2 エラー回避のため settings.gradle で処理）
           cat << 'EOF' >> tmp_base/android/settings.gradle
           gradle.beforeProject { project ->
               project.afterEvaluate { p ->
                   if (p.hasProperty("android")) {
                       p.android {
+                          compileSdkVersion 34
                           buildToolsVersion "34.0.0"
+                          defaultConfig {
+                              targetSdkVersion 34
+                          }
                       }
                   }
               }
