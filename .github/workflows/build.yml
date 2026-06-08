@@ -26,7 +26,9 @@ jobs:
           cp pubspec.yaml tmp_base/pubspec.yaml
           cp -r lib/. tmp_base/lib/
           mkdir -p tmp_base/assets/sounds
-          cp -r assets/. tmp_base/assets/
+          if [ -d assets ]; then
+            cp -r assets/. tmp_base/assets/
+          fi
           cp android/app/src/main/AndroidManifest.xml tmp_base/android/app/src/main/AndroidManifest.xml
 
       - name: ダミー音声ファイルを生成（実機テスト用）
