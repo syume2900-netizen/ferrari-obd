@@ -91,6 +91,8 @@ class ObdService {
     _buffer = '';
     _requesting = false;
 
+    if (!_initialized) return;
+
     if (_waitingRpm) {
       _rpm = _parseRpm(response);
     } else {

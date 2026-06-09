@@ -443,8 +443,9 @@ class _MainScreenState extends State<MainScreen> {
             child: ListView.builder(
               itemCount: _logs.length,
               itemBuilder: (context, index) {
-                // 最新のログが下に来るようにする
-                final log = _logs[index];
+                // 最新のログが一番上に来るようにする（逆順インデックス）
+                final logIndex = _logs.length - 1 - index;
+                final log = _logs[logIndex];
                 final isSend = log.startsWith('->');
                 return Text(
                   log,
