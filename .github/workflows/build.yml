@@ -92,6 +92,10 @@ jobs:
           # スマホスピーカーで聞こえるよう基本周波数は高め(100Hz〜)にする
           gen() {
             local f=$1 p=$2 out=$3
+            if [ -f "$out" ]; then
+              echo "$out already exists. Skipping synthesis."
+              return
+            fi
             ffmpeg -y -f lavfi -i \
               "aevalsrc='
                 (sin(2*PI*${f}*t) + sin(2*PI*${f}*2*t)/2 + sin(2*PI*${f}*3*t)/3 + sin(2*PI*${f}*4*t)/4 + sin(2*PI*${f}*5*t)/5 + sin(2*PI*${f}*6*t)/6 + sin(2*PI*${f}*7*t)/7 + sin(2*PI*${f}*8*t)/8)
