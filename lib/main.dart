@@ -46,10 +46,11 @@ class _MainScreenState extends State<MainScreen> {
   bool _soundOn = false;
   int _rpm = 0;
   double _throttle = 0.0;
+  bool _throttleValid = true;
   String _status = '接続待ち';
   StreamSubscription? _sub;
   StreamSubscription? _logSub;
-  String _selectedProtocol = 'ATSP0';
+  String _selectedProtocol = 'auto';
   final List<String> _logs = [];
 
   @override
@@ -91,6 +92,10 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _logs.add(log);
         if (_logs.length > 50) _logs.removeAt(0);
+        // 「=== プロトコル試行: ... ===」等の進捗をステータス欄にも表示
+        if (log.startsWith('===')) {
+          _status = log.replaceAll('=', '').trim();
+        }
       });
     });
     try {
@@ -98,12 +103,14 @@ class _MainScreenState extends State<MainScreen> {
       await _sound.init();
       _sub = _obd.dataStream.listen(_onData);
       setState(() {
+        _selected = device;
         _connected = true;
         _connecting = false;
         _soundOn = true;
         _status = '接続完了！';
       });
     } catch (e) {
+      await _obd.disconnect();
       setState(() {
         _connecting = false;
         _status = '接続失敗: $e';
@@ -115,9 +122,14 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _rpm = data.rpm;
       _throttle = data.throttle;
+      _throttleValid = data.throttleValid;
     });
     if (_soundOn) {
-      _sound.update(data.rpm, data.throttle);
+      // アクセル開度が取れない車では回転数から擬似的に算出して音量制御に使う
+      final throttle = data.throttleValid
+          ? data.throttle
+          : ((data.rpm - 800) / 5000.0 * 100).clamp(0.0, 100.0);
+      _sound.update(data.rpm, throttle);
     }
   }
 
@@ -199,10 +211,10 @@ class _MainScreenState extends State<MainScreen> {
                 dropdownColor: const Color(0xFF222222),
                 style: const TextStyle(color: Colors.white),
                 items: const [
-                  DropdownMenuItem(value: 'ATSP0', child: Text('オート（自動検出）')),
-                  DropdownMenuItem(value: 'ATSP4', child: Text('ヴォクシー H16年 (5ボー - ATSP4)')),
-                  DropdownMenuItem(value: 'ATSP5', child: Text('ヴォクシー H16年 (ファスト - ATSP5)')),
-                  DropdownMenuItem(value: 'ATSP6', child: Text('フェラーリ・一般車 (CAN - ATSP6)')),
+                  DropdownMenuItem(value: 'auto', child: Text('全自動（順番に試す・推奨）')),
+                  DropdownMenuItem(value: 'toyota', child: Text('ヴォクシー H16 (トヨタ M-OBD)')),
+                  DropdownMenuItem(value: 'std', child: Text('標準OBD2（自動検出）')),
+                  DropdownMenuItem(value: 'can', child: Text('CAN車（2008年以降の車）')),
                 ],
                 onChanged: (val) {
                   if (val != null) {
@@ -361,11 +373,11 @@ class _MainScreenState extends State<MainScreen> {
                 const SizedBox(height: 40),
 
                 // アクセル開度
-                const Text('アクセル開度',
-                    style: TextStyle(color: Colors.grey, fontSize: 14)),
+                Text(_throttleValid ? 'アクセル開度' : 'アクセル開度（この車は非対応）',
+                    style: const TextStyle(color: Colors.grey, fontSize: 14)),
                 const SizedBox(height: 8),
                 Text(
-                  '${_throttle.toStringAsFixed(1)}%',
+                  _throttleValid ? '${_throttle.toStringAsFixed(1)}%' : '--%',
                   style: const TextStyle(
                     color: Colors.amber,
                     fontSize: 40,

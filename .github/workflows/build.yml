@@ -85,11 +85,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           cd tmp_base/assets/sounds
-          # 本物の音はあとで差し替え。今はサイン波で動作確認用
-          ffmpeg -f lavfi -i "sine=frequency=80:duration=10"  -ar 44100 idle.mp3
-          ffmpeg -f lavfi -i "sine=frequency=150:duration=10" -ar 44100 low.mp3
-          ffmpeg -f lavfi -i "sine=frequency=250:duration=10" -ar 44100 mid.mp3
-          ffmpeg -f lavfi -i "sine=frequency=400:duration=10" -ar 44100 high.mp3
+          # 本物の音はあとで差し替え。倍音とノイズを重ねたエンジン風の合成音（純音のピー音より実車に近い）
+          gen() {
+            local f=$1 out=$2
+            ffmpeg -y -f lavfi -i "aevalsrc='0.40*sin(2*PI*$f*t)+0.28*sin(2*PI*$f*2*t)+0.16*sin(2*PI*$f*3*t)+0.10*sin(2*PI*$f*4*t)+0.06*sin(2*PI*$f*6*t)+0.05*(random(0)-0.5)':s=44100:d=10" -ar 44100 -b:a 128k "$out"
+          }
+          gen 45  idle.mp3
+          gen 85  low.mp3
+          gen 145 mid.mp3
+          gen 230 high.mp3
 
       - name: パッケージ取得
         run: cd tmp_base && flutter pub get

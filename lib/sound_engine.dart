@@ -11,6 +11,9 @@ class SoundEngine {
   final AudioPlayer _player = AudioPlayer();
   String _currentFile = '';
   bool _running = false;
+  bool _updating = false;
+  double _lastRate = 0;
+  double _lastVolume = 0;
 
   Future<void> init() async {
     await _player.setReleaseMode(ReleaseMode.loop);
@@ -20,21 +23,35 @@ class SoundEngine {
 
   Future<void> update(int rpm, double throttle) async {
     if (!_running) return;
+    // 前回の更新処理が終わる前に次が来たら捨てる（音切れ防止）
+    if (_updating) return;
+    _updating = true;
+    try {
+      final targetFile = _fileForRpm(rpm);
+      final rate = _rateForRpm(rpm);
 
-    final targetFile = _fileForRpm(rpm);
-    final rate = _rateForRpm(rpm);
+      if (targetFile != _currentFile) {
+        _currentFile = targetFile;
+        await _player.stop();
+        await _player.play(AssetSource('sounds/$targetFile'));
+        _lastRate = 0;
+        _lastVolume = 0;
+      }
 
-    if (targetFile != _currentFile) {
-      _currentFile = targetFile;
-      await _player.stop();
-      await _player.play(AssetSource('sounds/$targetFile'));
+      if ((rate - _lastRate).abs() > 0.02) {
+        _lastRate = rate;
+        await _player.setPlaybackRate(rate);
+      }
+
+      // アクセル開度で音量も変化
+      final volume = (0.4 + (throttle / 100.0) * 0.6).clamp(0.4, 1.0);
+      if ((volume - _lastVolume).abs() > 0.03) {
+        _lastVolume = volume;
+        await _player.setVolume(volume);
+      }
+    } finally {
+      _updating = false;
     }
-
-    await _player.setPlaybackRate(rate);
-
-    // アクセル開度で音量も変化
-    final volume = 0.4 + (throttle / 100.0) * 0.6;
-    await _player.setVolume(volume.clamp(0.4, 1.0));
   }
 
   String _fileForRpm(int rpm) {
