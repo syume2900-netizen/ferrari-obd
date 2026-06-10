@@ -80,20 +80,36 @@ jobs:
           cat tmp_base/android/build.gradle
           cat tmp_base/android/app/build.gradle
 
-      - name: ダミー音声ファイルを生成（実機テスト用）
+      - name: エンジン風の合成音を生成（テスト用）
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           cd tmp_base/assets/sounds
-          # 本物の音はあとで差し替え。倍音とノイズを重ねたエンジン風の合成音（純音のピー音より実車に近い）
+
+          # ノコギリ波(倍音が豊富でブーンと鳴る)をエンジンの脈動でAM変調
+          # f=基本周波数  p=脈動周波数(気筒の点火リズム)
+          # ノコギリ波 = Σ sin(n*f*t)/n  →  ブーン/ブロロロという音色になる
+          # スマホスピーカーで聞こえるよう基本周波数は高め(100Hz〜)にする
           gen() {
-            local f=$1 out=$2
-            ffmpeg -y -f lavfi -i "aevalsrc='0.40*sin(2*PI*$f*t)+0.28*sin(2*PI*$f*2*t)+0.16*sin(2*PI*$f*3*t)+0.10*sin(2*PI*$f*4*t)+0.06*sin(2*PI*$f*6*t)+0.05*(random(0)-0.5)':s=44100:d=10" -ar 44100 -b:a 128k "$out"
+            local f=$1 p=$2 out=$3
+            ffmpeg -y -f lavfi -i \
+              "aevalsrc='
+                (sin(2*PI*${f}*t) + sin(2*PI*${f}*2*t)/2 + sin(2*PI*${f}*3*t)/3 + sin(2*PI*${f}*4*t)/4 + sin(2*PI*${f}*5*t)/5 + sin(2*PI*${f}*6*t)/6 + sin(2*PI*${f}*7*t)/7 + sin(2*PI*${f}*8*t)/8)
+                * (0.7 + 0.3*sin(2*PI*${p}*t))
+                * 0.3
+              ':s=44100:d=10" \
+              -af "highpass=f=80,lowpass=f=4000" \
+              -ar 44100 -b:a 192k "$out"
           }
-          gen 45  idle.mp3
-          gen 85  low.mp3
-          gen 145 mid.mp3
-          gen 230 high.mp3
+
+          # idle : 低いドロドロ (100Hz基本, 13Hz脈動≒V8@800RPMの点火周波数)
+          gen 100 13 idle.mp3
+          # low  : 少し上がったブロロロ (180Hz, 25Hz脈動≒V8@1500RPM)
+          gen 180 25 low.mp3
+          # mid  : 中回転の唸り (300Hz, 50Hz脈動≒V8@3500RPM)
+          gen 300 50 mid.mp3
+          # high : 高回転の叫び (480Hz, 90Hz脈動≒V8@6500RPM)
+          gen 480 90 high.mp3
 
       - name: パッケージ取得
         run: cd tmp_base && flutter pub get

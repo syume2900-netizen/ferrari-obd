@@ -55,22 +55,27 @@ class SoundEngine {
   }
 
   String _fileForRpm(int rpm) {
-    if (rpm < 800) return 'idle.mp3';
-    if (rpm < 2500) return 'low.mp3';
+    if (rpm < 900) return 'idle.mp3';
+    if (rpm < 2800) return 'low.mp3';
     if (rpm < 5000) return 'mid.mp3';
     return 'high.mp3';
   }
 
   double _rateForRpm(int rpm) {
-    // 各音声ファイルの「基準RPM」に対して再生速度を調整
-    if (rpm < 800) {
-      return (rpm / 700.0).clamp(0.5, 1.2);
-    } else if (rpm < 2500) {
-      return (rpm / 1600.0).clamp(0.5, 1.5);
+    // 各ファイルの基準RPM付近で 1.0、帯域の上端で 1.8〜2.0 になるように。
+    // 再生速度が上がる＝音が高くなる＝回転が上がった感じが出る。
+    if (rpm < 900) {
+      // idle: 500→0.7  800→1.1
+      return (rpm / 700.0).clamp(0.6, 1.3);
+    } else if (rpm < 2800) {
+      // low: 900→0.6  1500→1.0  2800→1.9
+      return (rpm / 1500.0).clamp(0.6, 2.0);
     } else if (rpm < 5000) {
-      return (rpm / 3500.0).clamp(0.6, 1.5);
+      // mid: 2800→0.7  3700→1.0  5000→1.4
+      return (rpm / 3700.0).clamp(0.6, 1.5);
     } else {
-      return (rpm / 6000.0).clamp(0.7, 1.8);
+      // high: 5000→0.8  6500→1.0  8000→1.3
+      return (rpm / 6500.0).clamp(0.7, 1.5);
     }
   }
 
