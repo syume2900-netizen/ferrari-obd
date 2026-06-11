@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Ferrari Sound Simulator (Web Audio API)</title>
+    <style>
+        body {
+            background-color: #111;
+            color: #eee;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #222;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        h1 { color: #cc0000; margin-bottom: 30px; }
+        .control-group {
+            margin: 25px 0;
+            text-align: left;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+        }
+        input[type="range"] {
+            flex: 1;
+            margin-right: 15px;
+            accent-color: #cc0000;
+        }
+        .val-display {
+            width: 80px;
+            font-family: monospace;
+            font-size: 1.2em;
+            text-align: right;
+        }
+        .btn {
+            background: #cc0000;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .btn:hover { background: #ff3333; }
+        .status {
+            margin-top: 15px;
+            color: #888;
+            font-size: 0.9em;
+        }
+        .meters {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            background: #111;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .meter-col {
+            width: 22%;
+            text-align: center;
+        }
+        .meter-bar {
+            height: 100px;
+            background: #333;
+            width: 20px;
+            margin: 10px auto;
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .meter-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #cc0000;
+            height: 0%;
+            transition: height 0.05s linear;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏎 Ferrari Sound PC Simulator</h1>
+    
+    <button id="start-btn" class="btn">シミュレーター開始</button>
+    <div id="status" class="status">音源を読み込んで開始してください</div>
+
+    <div class="control-group">
+        <label for="rpm-slider">エンジン回転数 (RPM)</label>
+        <div class="slider-row">
+            <input type="range" id="rpm-slider" min="600" max="8000" value="800" disabled>
+            <span id="rpm-val" class="val-display">800</span>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label for="throttle-slider">アクセル開度 (%)</label>
+        <div class="slider-row">
+            <input type="range" id="throttle-slider" min="0" max="100" value="0" disabled>
+            <span id="throttle-val" class="val-display">0.0%</span>
+        </div>
+    </div>
+
+    <div class="meters">
+        <div class="meter-col">
+            <div>idle</div>
+            <div class="meter-bar"><div id="fill-idle" class="meter-fill"></div></div>
+            <span id="vol-idle" style="font-size:0.8em;color:#888">0%</span>
+        </div>
+        <div class="meter-col">
+            <div>low</div>
+            <div class="meter-bar"><div id="fill-low" class="meter-fill"></div></div>
+            <span id="vol-low" style="font-size:0.8em;color:#888">0%</span>
+        </div>
+        <div class="meter-col">
+            <div>mid</div>
+            <div class="meter-bar"><div id="fill-mid" class="meter-fill"></div></div>
+            <span id="vol-mid" style="font-size:0.8em;color:#888">0%</span>
+        </div>
+        <div class="meter-col">
+            <div>high</div>
+            <div class="meter-bar"><div id="fill-high" class="meter-fill"></div></div>
+            <span id="vol-high" style="font-size:0.8em;color:#888">0%</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const sounds = {
+        idle: { url: 'assets/sounds/idle.mp3', buffer: null, source: null, gainNode: null },
+        low: { url: 'assets/sounds/low.mp3', buffer: null, source: null, gainNode: null },
+        mid: { url: 'assets/sounds/mid.mp3', buffer: null, source: null, gainNode: null },
+        high: { url: 'assets/sounds/high.mp3', buffer: null, source: null, gainNode: null }
+    };
+
+    let isPlaying = false;
+
+    const startBtn = document.getElementById('start-btn');
+    const statusDiv = document.getElementById('status');
+    const rpmSlider = document.getElementById('rpm-slider');
+    const rpmVal = document.getElementById('rpm-val');
+    const throttleSlider = document.getElementById('throttle-slider');
+    const throttleVal = document.getElementById('throttle-val');
+
+    startBtn.addEventListener('click', async () => {
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+
+        if (isPlaying) {
+            stopAll();
+            startBtn.innerText = 'シミュレーター開始';
+            statusDiv.innerText = '停止中';
+            rpmSlider.disabled = true;
+            throttleSlider.disabled = true;
+            isPlaying = false;
+            return;
+        }
+
+        startBtn.disabled = true;
+        statusDiv.innerText = '音源ファイルを読み込み中...';
+
+        try {
+            for (const key in sounds) {
+                if (!sounds[key].buffer) {
+                    sounds[key].buffer = await loadSound(sounds[key].url);
+                }
+            }
+            startAll();
+            startBtn.innerText = 'シミュレーター停止';
+            startBtn.disabled = false;
+            statusDiv.innerText = '動作中';
+            rpmSlider.disabled = false;
+            throttleSlider.disabled = false;
+            isPlaying = true;
+            updateSound();
+        } catch (e) {
+            statusDiv.innerText = '音源の読み込みに失敗しました。assets/sounds/ にファイルがあるか確認してください: ' + e;
+            startBtn.disabled = false;
+        }
+    });
+
+    async function loadSound(url) {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        return await audioCtx.decodeAudioData(arrayBuffer);
+    }
+
+    function startAll() {
+        for (const key in sounds) {
+            const s = sounds[key];
+            s.source = audioCtx.createBufferSource();
+            s.source.buffer = s.buffer;
+            s.source.loop = true;
+
+            s.gainNode = audioCtx.createGain();
+            s.gainNode.gain.value = 0.0;
+
+            s.source.connect(s.gainNode);
+            s.gainNode.connect(audioCtx.destination);
+            s.source.start(0);
+        }
+    }
+
+    function stopAll() {
+        for (const key in sounds) {
+            if (sounds[key].source) {
+                try {
+                    sounds[key].source.stop();
+                } catch(e){}
+                sounds[key].source = null;
+            }
+        }
+    }
+
+    rpmSlider.addEventListener('input', () => {
+        rpmVal.innerText = rpmSlider.value;
+        updateSound();
+    });
+
+    throttleSlider.addEventListener('input', () => {
+        throttleVal.innerText = parseFloat(throttleSlider.value).toFixed(1) + '%';
+        updateSound();
+    });
+
+    function updateSound() {
+        if (!isPlaying) return;
+
+        const rpm = parseInt(rpmSlider.value);
+        const throttle = parseFloat(throttleSlider.value);
+
+        // ==========================================
+        // 【音作り・クロスフェードの計算ロジックエリア】
+        // ==========================================
+        let volIdle = 0.0;
+        let volLow = 0.0;
+        let volMid = 0.0;
+        let volHigh = 0.0;
+
+        if (rpm < 800) {
+            volIdle = 1.0;
+        } else if (rpm < 1800) {
+            let ratio = (rpm - 800) / 1000.0;
+            volIdle = 1.0 - ratio;
+            volLow = ratio;
+        } else if (rpm < 3500) {
+            let ratio = (rpm - 1800) / 1700.0;
+            volLow = 1.0 - ratio;
+            volMid = ratio;
+        } else if (rpm < 5500) {
+            let ratio = (rpm - 3500) / 2000.0;
+            volMid = 1.0 - ratio;
+            volHigh = ratio;
+        } else {
+            volHigh = 1.0;
+        }
+
+        const throttleFactor = 0.4 + (throttle / 100.0) * 0.6;
+        volIdle *= throttleFactor;
+        volLow *= throttleFactor;
+        volMid *= throttleFactor;
+        volHigh *= throttleFactor;
+
+        // 各音源の再生速度（ピッチ）の計算
+        const rateIdle = Math.min(Math.max(rpm / 800.0, 0.7), 1.3);
+        const rateLow = Math.min(Math.max(rpm / 1800.0, 0.6), 1.8);
+        const rateMid = Math.min(Math.max(rpm / 3500.0, 0.6), 1.8);
+        const rateHigh = Math.min(Math.max(rpm / 5500.0, 0.7), 1.8);
+
+        // Web Audio APIの設定 (ラグなく即時反映)
+        sounds.idle.gainNode.gain.setTargetAtTime(volIdle, audioCtx.currentTime, 0.02);
+        sounds.idle.source.playbackRate.setTargetAtTime(rateIdle, audioCtx.currentTime, 0.02);
+
+        sounds.low.gainNode.gain.setTargetAtTime(volLow, audioCtx.currentTime, 0.02);
+        sounds.low.source.playbackRate.setTargetAtTime(rateLow, audioCtx.currentTime, 0.02);
+
+        sounds.mid.gainNode.gain.setTargetAtTime(volMid, audioCtx.currentTime, 0.02);
+        sounds.mid.source.playbackRate.setTargetAtTime(rateMid, audioCtx.currentTime, 0.02);
+
+        sounds.high.gainNode.gain.setTargetAtTime(volHigh, audioCtx.currentTime, 0.02);
+        sounds.high.source.playbackRate.setTargetAtTime(rateHigh, audioCtx.currentTime, 0.02);
+
+        updateMeter('idle', volIdle);
+        updateMeter('low', volLow);
+        updateMeter('mid', volMid);
+        updateMeter('high', volHigh);
+    }
+
+    function updateMeter(key, val) {
+        document.getElementById('fill-' + key).style.height = (val * 100) + '%';
+        document.getElementById('vol-' + key).innerText = Math.round(val * 100) + '%';
+    }
+</script>
+</body>
+</html>
