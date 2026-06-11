@@ -146,10 +146,10 @@
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     
     const sounds = {
-        idle: { url: 'assets/sounds/idle.mp3', buffer: null, source: null, gainNode: null },
-        low: { url: 'assets/sounds/low.mp3', buffer: null, source: null, gainNode: null },
-        mid: { url: 'assets/sounds/mid.mp3', buffer: null, source: null, gainNode: null },
-        high: { url: 'assets/sounds/high.mp3', buffer: null, source: null, gainNode: null }
+        idle: { url: 'assets/sounds/idle.mp3?v=' + Date.now(), buffer: null, source: null, gainNode: null },
+        low: { url: 'assets/sounds/low.mp3?v=' + Date.now(), buffer: null, source: null, gainNode: null },
+        mid: { url: 'assets/sounds/mid.mp3?v=' + Date.now(), buffer: null, source: null, gainNode: null },
+        high: { url: 'assets/sounds/high.mp3?v=' + Date.now(), buffer: null, source: null, gainNode: null }
     };
 
     let isPlaying = false;
