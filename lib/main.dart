@@ -43,6 +43,7 @@ class _MainScreenState extends State<MainScreen> {
   BluetoothDevice? _selected;
   bool _connected = false;
   bool _connecting = false;
+  bool _isSimulation = false;
   bool _soundOn = false;
   int _rpm = 0;
   double _throttle = 0.0;
@@ -106,6 +107,7 @@ class _MainScreenState extends State<MainScreen> {
         _selected = device;
         _connected = true;
         _connecting = false;
+        _isSimulation = false;
         _soundOn = true;
         _status = '接続完了！';
       });
@@ -133,13 +135,39 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  Future<void> _startSimulation() async {
+    setState(() {
+      _connecting = true;
+      _status = 'デモモードを起動中...';
+    });
+    try {
+      await _sound.init();
+      setState(() {
+        _connected = true;
+        _isSimulation = true;
+        _soundOn = true;
+        _rpm = 800;
+        _throttle = 0.0;
+        _status = 'デモモード動作中';
+      });
+    } catch (e) {
+      setState(() {
+        _connecting = false;
+        _status = 'デモモード起動失敗: $e';
+      });
+    }
+  }
+
   Future<void> _disconnect() async {
     _sub?.cancel();
     _logSub?.cancel();
     await _sound.stop();
-    await _obd.disconnect();
+    if (!_isSimulation) {
+      await _obd.disconnect();
+    }
     setState(() {
       _connected = false;
+      _isSimulation = false;
       _soundOn = false;
       _rpm = 0;
       _throttle = 0;
@@ -197,6 +225,20 @@ class _MainScreenState extends State<MainScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
             ],
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: const Color(0xFF151515),
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.play_arrow, color: Colors.white),
+            label: const Text('PC・スマホ単体テスト用デモモード', style: TextStyle(color: Colors.white)),
+            onPressed: _connecting ? null : _startSimulation,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blueGrey[800],
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
           ),
         ),
         Container(
@@ -302,11 +344,19 @@ class _MainScreenState extends State<MainScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              const Icon(Icons.bluetooth_connected,
-                  color: Colors.green, size: 16),
+              Icon(
+                _isSimulation ? Icons.offline_bolt : Icons.bluetooth_connected,
+                color: _isSimulation ? Colors.blue : Colors.green,
+                size: 16,
+              ),
               const SizedBox(width: 8),
-              Text(_selected?.name ?? 'ICARPRO',
-                  style: const TextStyle(color: Colors.green, fontSize: 12)),
+              Text(
+                _isSimulation ? 'デモシミュレーター' : (_selected?.name ?? 'ICARPRO'),
+                style: TextStyle(
+                  color: _isSimulation ? Colors.blue : Colors.green,
+                  fontSize: 12,
+                ),
+              ),
               const Spacer(),
               GestureDetector(
                 onTap: () => setState(() => _soundOn = !_soundOn),
@@ -409,6 +459,62 @@ class _MainScreenState extends State<MainScreen> {
                     letterSpacing: 2,
                   ),
                 ),
+                if (_isSimulation) ...[
+                  const SizedBox(height: 24),
+                  const Divider(color: Colors.white24),
+                  const SizedBox(height: 12),
+                  const Text('【テスト操作パネル】', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 70,
+                        child: Text('RPM:', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: _rpm.toDouble(),
+                          min: 600,
+                          max: 8000,
+                          activeColor: Colors.blue,
+                          onChanged: (val) {
+                            setState(() {
+                              _rpm = val.toInt();
+                            });
+                            if (_soundOn) {
+                              _sound.update(_rpm, _throttle);
+                            }
+                          },
+                        ),
+                      ),
+                      Text('${_rpm.toString()} rpm', style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 70,
+                        child: Text('アクセル:', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          value: _throttle,
+                          min: 0,
+                          max: 100,
+                          activeColor: Colors.blue,
+                          onChanged: (val) {
+                            setState(() {
+                              _throttle = val;
+                            });
+                            if (_soundOn) {
+                              _sound.update(_rpm, _throttle);
+                            }
+                          },
+                        ),
+                      ),
+                      Text('${_throttle.toStringAsFixed(1)}%', style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
